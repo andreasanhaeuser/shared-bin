@@ -1,0 +1,47 @@
+# git
+# -----------------------
+.git
+
+
+# code not worth sharing
+# --------------------------
+backup
+jobs
+tmp
+devel.py
+
+
+# python
+# -----------------------
+__pycache__
+*.pyc
+
+
+# Vim
+# -----------------------
+.*swp
+.*swo
+
+
+# lock files
+# -----------------------
+*.lock
+
+# Log files
+# -----------------------
+*.log
+*.rec
+*.err
+
+# backup files
+# ----------------------
+*.backup
+
+# Image files
+# -----------------------
+*.png
+*.svg
+
+# data files
+# ----------------------
+*.tar.gz

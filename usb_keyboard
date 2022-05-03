@@ -1,0 +1,13 @@
+#!/bin/bash
+
+usbkbd_layout="de(de)"
+usbkbd=`xinput -list | grep -c "USB Keyboard"`
+if [[ "$usbkbd" -gt 0 ]]
+then
+    usbkbd_ids=`xinput -list | grep "USB Keyboard" | awk -F'=' '{print $2}' | cut -c 1-2`
+    for ID in $usbkbd_ids
+    do
+        setxkbmap -device "${ID}" -layout "${usbkbd_layout}"
+    done
+fi
+exit 0

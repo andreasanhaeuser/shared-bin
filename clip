@@ -1,0 +1,22 @@
+#!/bin/bash
+# Copy argument to clipboard
+
+#if [[ ! $- == *i* ]]
+#then
+#    # not an interactive shell
+#    exit
+#fi
+
+
+if ! command -v xclip &> /dev/null
+then
+    # xclip is not available
+    exit
+fi
+
+
+# clip
+echo -n $1 | xclip -selection c
+
+# report
+echo "(copied to clipboard)"

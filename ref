@@ -1,0 +1,6 @@
+#!/bin/bash
+
+printf "${TEXTCOLOR}";
+cat ~/shared/.ref/"$1".ref;
+printf "${NOCOLOR}";
+echo "";

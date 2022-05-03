@@ -1,0 +1,12 @@
+#!/bin/bash
+# Print real path of argument
+
+args=$@
+if [[ $args == '' ]]
+then
+    args='.'
+fi
+
+string=$(readlink -f $args)
+echo $string
+clip $string

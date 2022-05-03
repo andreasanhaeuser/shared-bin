@@ -1,0 +1,20 @@
+#!/usr/bin/python3
+
+import os
+import sys
+
+html = sys.argv[1].strip().strip('#')
+
+assert len(html) in (6, 8)
+
+r = int(html[0:2], 16) / 255
+g = int(html[2:4], 16) / 255
+b = int(html[4:6], 16) / 255
+
+if len(html) == 8:
+    a = int(html[6:8], 16) / 255
+else:
+    a = 1.
+
+text = '%1.3f, %1.3f, %1.3f, %1.3f' % (r, g, b, a)
+print(text)

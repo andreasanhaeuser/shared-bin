@@ -1,0 +1,120 @@
+-- vim: ts=4 sw=4 noet ai cindent syntax=lua
+--[[
+Conky, a system monitor, based on torsmo
+
+Any original torsmo code is licensed under the BSD license
+
+All code written since the fork of torsmo is licensed under the GPL
+
+Please see COPYING for details
+
+Copyright (c) 2004, Hannu Saransaari and Lauri Hakkarainen
+Copyright (c) 2005-2012 Brenden Matthews, Philip Kovacs, et. al. (see AUTHORS)
+All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+]]
+
+conky.config = {
+    color0 = 'cyan',
+    color1 = 'grey',
+    color2 = 'white',
+    color3 = 'white',
+    alignment = 'bottom_right',
+    background = false,
+    border_width = 1,
+    cpu_avg_samples = 2,
+    default_bar_height = 4,
+	default_color = 'white',
+    default_graph_height = 25,
+    default_outline_color = 'white',
+    default_shade_color = 'white',
+    double_buffer = true,
+    draw_borders = false,
+    draw_graph_borders = true,
+    draw_outline = false,
+    draw_shades = false,
+    font = 'DejaVu Sans Mono:size=12',
+    gap_x = 660,
+    gap_y = 0,
+    minimum_height = 5,
+	minimum_width = 270,
+	maximum_width = 270,
+    net_avg_samples = 2,
+    no_buffers = true,
+    override_utf8_locale = true,
+    out_to_console = false,
+    out_to_stderr = false,
+    extra_newline = false,
+    own_window = true,
+    own_window_argb_value = 0,
+    own_window_argb_visual = true,
+    own_window_class = 'Conky',
+    own_window_type = 'normal',
+	own_window_hints = 'undecorated,below,skip_taskbar,skip_pager',
+    short_units = true,
+    show_graph_scale = false,
+    show_graph_range = false,
+    stippled_borders = 0,
+    text_buffer_size = 32768,
+    update_interval = 1.0,
+    uppercase = false,
+    use_spacer = 'none',
+    use_xft = true,
+    xinerama_head = 1,
+}
+
+conky.text = [[
+$color0${voffset 45}
+${font Ubuntu:bold:size=9}NETWORK${voffset 4}${font sans-serif:normal:size=8}
+${color1}Local IP:${alignr}$color2${execi 1000 ip a | grep inet | grep -vw lo | grep -v inet6 | cut -d \/ -f1 | sed 's/[^0-9\.]*//g'}
+${color1}External IP:${alignr}${color2}${execi 1000  wget -q -O- http://ipecho.net/plain; echo}
+
+
+${voffset 0}${color0}${font Ubuntu:bold:size=9}Wifi${voffset 4}${font sans-serif:normal:size=8}
+${color1}Device:${alignr}${color2}wlp4s0
+${color1}Connected:${alignr}${color2}${execi 3 network_connected wlp4s0}
+${color1}Network:${alignr}${color2}${execi 3 wifi_name}
+${color1}VPN:${alignr}${color2}${execi 3 vpn_name wlp4s0}
+${color1}Frequecy:${alignr}${color2}${wireless_freq 3 wlp4s0}
+${color1}Channel:${alignr}${color2}${wireless_channel 3 wlp4s0}
+${color1}Bitrate:${alignr}${color2}${wireless_bitrate 1 wlp4s0}
+${voffset 4}${color1}Signal quality:${alignr}${color2}${wireless_link_qual_perc 3 wlp4s0}%
+${color3}${wireless_link_bar 4 wlp4s0}
+${voffset 4}${color1}Up:${alignr}$color2${upspeed wlp4s0}/s ${voffset -4}${color3}${upspeedgraph wlp4s0 30,185 10000 -l}
+${voffset -25}${color1}${alignr 185}${color2}${totalup wlp4s0} 
+
+${voffset 4}${color1}Down:${alignr}$color2${downspeed wlp4s0}/s ${voffset -4}${color3}${downspeedgraph wlp4s0 30,185 10000 -l}
+${voffset -25}${color1}${alignr 185}${color2}${totaldown wlp4s0} 
+
+
+${voffset 0}${color0}${font Ubuntu:bold:size=9}Ethernet${voffset 4}${font sans-serif:normal:size=8}
+${color1}Device:${alignr}${color2}enp0s25
+${color1}Connected:${alignr}${color2}${execi 5 network_connected enp0s25}
+${voffset 4}${color1}Up:${alignr}$color2${upspeed enp0s25}/s ${voffset -4}${color3}${upspeedgraph enp0s25 30,185 10000 -l}
+${voffset -25}${color1}${alignr 185}${color2}${totalup enp0s25} 
+
+${voffset 4}${color1}Down:${alignr}$color2${downspeed enp0s25}/s ${voffset -4}${color3}${downspeedgraph enp0s25 30,185 10000 -l}
+${voffset -25}${color1}${alignr 185}${color2}${totaldown enp0s25} 
+
+
+${color0}${font Ubuntu:bold:size=9}Loopback${voffset 4}${font sans-serif:normal:size=8}
+${color1}Device:${alignr}${color2}lo
+${color1}Connected:${alignr}${color2}${execi 5 network_connected lo}
+${voffset 4}${color1}Up:${alignr}$color2${upspeed lo}/s ${voffset -4}${color3}${upspeedgraph lo 30,185 1 -l}
+${voffset -25}${color1}${alignr 185}${color2}${totalup lo} 
+
+${voffset 4}${color1}Down:${alignr}$color2${downspeed lo}/s ${voffset -4}${color3}${downspeedgraph lo 30,185 1 -l}
+${voffset -25}${color1}${alignr 185}${color2}${totaldown lo} 
+
+]]

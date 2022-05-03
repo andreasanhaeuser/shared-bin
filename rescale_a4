@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# upscale a small pdf-document to a4-size
+#
+# Synopsis
+# --------
+# rescale_a4 input.pdf output.pdf
+#
+# Dependencies
+# ------------
+# gs (ghost script)
+
+gs \
+ -o $2 \
+ -sDEVICE=pdfwrite \
+ -sPAPERSIZE=a4 \
+ -dFIXEDMEDIA \
+ -dPDFFitPage \
+ -dCompatibilityLevel=1.4 \
+  $1

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+line=$(acpi -V | grep capacity)
+len=${#line}
+percentage=${line:len-3:len}
+
+echo $percentage

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+DIR=$(dirname "$1")
+BASENAME=$(basename "$1" .tex)
+
+cd $DIR
+pdflatex "${BASENAME}.tex"

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# echo current wifi name (if any)
+name=$(nmcli -t -f active,ssid dev wifi | egrep '^yes' | cut -d\: -f2)
+
+echo $name

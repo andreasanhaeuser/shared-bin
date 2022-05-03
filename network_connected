@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# surpress stderr
+exec 2>/dev/null
+
+# retrieve status line
+line=$(ethtool $1 | grep 'Link detected:')
+
+# generate output
+if [[ $line = *"yes"* ]]
+then
+    echo 'yes'
+elif [[ $line = *"no"* ]]
+then
+    echo 'no'
+else
+    echo 'unknown'
+    exit 1
+fi

@@ -1,0 +1,57 @@
+#!/usr/bin/python3
+"""Subtract two netcdf datasets."""
+
+# standard modules
+import argparse
+
+# PyPI modules
+from netCDF4 import Dataset
+
+# parse command-line arguments
+# =========================================================
+parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+parser.add_argument(dest='fni1', help='input netcdf file (minuend)')
+parser.add_argument(dest='fni2', help='input netcdf file (subtrahend)')
+parser.add_argument(dest='fno', help='output netcdf file')
+parser.add_argument(
+        '-r', '--reldiff',
+        action='store_true',
+        help='compute relative difference (rather than absolute difference)',
+        )
+args = parser.parse_args()
+# =========================================================
+
+with Dataset(args.fni1, 'r') as fi1, Dataset(args.fni2, 'r') as fi2:
+    with Dataset(args.fno, 'w') as fo:
+        file_dimensions = fi1.dimensions
+        for dimname in file_dimensions:
+            size = file_dimensions[dimname].size
+            fo.createDimension(dimname, size)
+
+        varnames = fi1.variables
+        for varname in varnames:
+            vi1 = fi1.variables[varname]
+            vi2 = fi2.variables[varname]
+
+            dimensions = vi1.dimensions
+            dtype = vi1.dtype
+            vo = fo.createVariable(varname, dtype, dimensions)
+
+            attnames = vi1.ncattrs()
+            for attname in attnames:
+                attvalue = vi1.getncattr(attname)
+                vo.setncattr(attname, attvalue)
+
+            vals1 = vi1[:]
+            vals2 = vi2[:]
+            if varname in file_dimensions:
+                value = vals1
+            elif args.reldiff:
+                value = (vals1 - vals2) / vals2
+            else:
+                value = vals1 - vals2
+
+            vo[:] = value

@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# Jobs to be done when setting up a new linux machine
+
+###################################################
+# APT PACKAGES                                    #
+###################################################
+apt_packages='
+    acpi
+    dvipng
+    ethtool
+    ffmpeg
+    fonts-roboto
+    gimp
+    git
+    htop
+    inkscape
+    keepassxc
+    konsole
+    less
+    libgdal-dev
+    libudunits2-dev
+    libgeos++-dev
+    members
+    okular
+    tmux
+    netcdf-bin
+    nco
+    cdo
+    conky
+    unison
+    texlive-base
+    texlive-bibtex-extra
+    texlive-fonts-extra
+    texlive-humanities
+    texlive-lang-european
+    texlive-lang-french
+    texlive-lang-german
+    texlive-lang-greek
+    texlive-latex-recommended
+    texlive-latex-extra
+    texlive-pstricks
+    texlive-science
+    vim
+    vim-gtk
+    xclip
+    zsh
+    '
+sudo apt install $apt_packages || exit 1
+
+# call other installers
+sudo install_python
+# sudo install_signal

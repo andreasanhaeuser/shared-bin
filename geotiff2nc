@@ -1,0 +1,6 @@
+#!/bin/bash
+
+infile=$1
+outfile=$2
+
+gdal_translate -of netCDF $infile $outfile

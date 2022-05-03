@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Description
+# -----------
+# Works in analogy to `sort`.
+# Rather than sorting lines in a text, it sorts words in a line.
+#
+# Example 
+# -------
+# $ wsort "A few words in a line"
+# a A few in line words
+
+# separate options and argument of sort:
+length=$(($#-1))
+opts=${@:1:$length}
+arg="${!#}"
+
+echo $arg | tr " " "\n" | sort $opts | tr "\n" " " ; echo

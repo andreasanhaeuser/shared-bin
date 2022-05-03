@@ -1,0 +1,301 @@
+#!/usr/bin/python2
+
+import argparse
+from netCDF4 import Dataset
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
+
+
+###################################################
+# COMMAND LINE ARGUMENTS                          #
+###################################################
+parser = argparse.ArgumentParser(description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,)
+
+# ========== OPTIONAL ARGUMENTS ============== #
+group = parser.add_mutually_exclusive_group()
+group.add_argument('--cat', dest='is_categorical', action='store_true',
+        help='use this for categorical data')
+group.add_argument('--cont', dest='is_continuous', action='store_true',
+        help='use this for continuous data')
+
+parser.add_argument('--dpi', dest='dpi', default=None, type=int,
+        help='resolution of the output file')
+parser.add_argument('-g', '--globe', dest='plot_globe', action='store_true',
+        help='show the whole globe even if the dataset covers ' + \
+        'only a small portion of it.')
+parser.add_argument('-l', '--level', dest='level', default=None, type=int,
+        help='level number to plot (start counting at 1)')
+parser.add_argument('-m', '--colormap', dest='colormap', default='jet',
+        help='colormap')
+parser.add_argument('-n', '--ncol', dest='ncol', default=None,
+        help='number of colors or contour lines')
+parser.add_argument('-r', '--resolution', dest='resolution', default='c',
+        help='coastline resoution. Allowed values: c (crude), l (low), ' + \
+                'i (intermediate), h (high), f (full) ' + \
+                'Higher resolution severely speeds down the plot.')
+parser.add_argument('-s', '--step', dest='step', default=None,
+        type=int, help='time step to plot (start counting at 1)')
+parser.add_argument('-t', '--title', dest='title', default=None,
+        help='plot title')
+parser.add_argument('-v', '--varname', dest='varname', default=None,
+        help='name of the netcdf variable to plot')
+parser.add_argument('--vmin', dest='vmin', default=None, type=float,
+        help='lower bound of the value range to plot')
+parser.add_argument('--vmax', dest='vmax', default=None, type=float,
+        help='upper bound of the value range to plot (inclusive)')
+
+# ========== POSITIONAL ARGUMENTS ============ #
+parser.add_argument('fni', help='input file name (netcdf)')
+parser.add_argument('fno', help='output file name (eps or png)')
+
+# ============================================ #
+args = parser.parse_args()
+
+_lonkeys = ['x', 'lon', 'long', 'longitude', 'xlon', 'xlong']
+_latkeys = ['y', 'lat', 'latitude', 'xlat']
+_levkeys = ['z', 'lev' 'level', 'layer']
+_timekeys = ['step', 'time' 'times']
+_dimkeys = _lonkeys + _latkeys + _levkeys + _timekeys
+
+###################################################
+# HELPER FUNCTIONS                                #
+###################################################
+def find_variable_names(fid):
+    vns = []
+    for vn in fid.variables.keys():
+        var = fid.variables[vn]
+        shape = var.shape
+        if len(shape) < 2:
+            continue
+        if vn.lower() in _dimkeys:
+            continue
+        vns.append(vn)
+
+    return vns
+
+def get_axis(vid, axiskeys):
+    dims = vid.dimensions
+    for i, dim in enumerate(dims):
+        if dim.lower() in axiskeys:
+            return i
+    return None
+
+get_lon_axis = lambda vid: get_axis(vid, _lonkeys)
+get_lat_axis = lambda vid: get_axis(vid, _latkeys)
+get_lev_axis = lambda vid: get_axis(vid, _levkeys)
+get_time_axis = lambda vid: get_axis(vid, _timekeys)
+
+def get_lons(fid):
+    for vn in fid.variables.keys():
+        if vn.lower() in _lonkeys:
+            return fid.variables[vn][:]
+    return None
+
+def get_lats(fid):
+    for vn in fid.variables.keys():
+        if vn.lower() in _latkeys:
+            return fid.variables[vn][:]
+    return None
+
+def get_data(vid, lev=None, time=None):
+    shape = vid.shape
+    lon_axis = get_lon_axis(vid)
+    lat_axis = get_lat_axis(vid)
+    lev_axis = get_lev_axis(vid)
+    time_axis = get_time_axis(vid)
+
+    Ndim = len(shape)
+    indices = [0] * Ndim
+
+    Nlon = shape[lon_axis]
+    Nlat = shape[lat_axis]
+    indices[lon_axis] = slice(Nlon)
+    indices[lat_axis] = slice(Nlat)
+    if lev is not None:
+        assert lev_axis is not None
+        indices[lev_axis] = lev
+    if time is not None:
+        assert time_axis is not None
+        indices[time_axis] = time
+
+    indices = tuple(indices)
+
+    return vid[indices]
+
+    
+###################################################
+# MAIN                                            #
+###################################################
+fni = args.fni
+if not os.path.isfile(fni):
+    raise IOError('File does not exist: %s' % fni)
+
+with Dataset(fni, 'r') as fid:
+#    pass
+#
+##DEBUG
+#while True:
+#    fid = Dataset(fni, 'r')
+
+    ###################################################
+    # VARIABLE NAME                                   #
+    ###################################################
+    vn = args.varname
+    if vn is None:
+        vns = find_variable_names(fid)
+        if len(vns) == 0:
+            raise LookupError('Cound not find any data variable.')
+        vn = vns[0]
+        if len(vns) > 1:
+            print 'WARNING: Several data variables found: %s' % str(vns)
+            print 'Using only "%s"' % vn
+
+    if not vn in fid.variables.keys():
+        raise LookupError('Could not find variable "%s".' % vn)
+
+    vid = fid.variables[vn]
+
+    ###################################################
+    # GET COORDINATES                                 #
+    ###################################################
+    lons = get_lons(fid)
+    lats = get_lats(fid)
+    if lons is None:
+        raise LookupError('Could not find longitudes.')
+    if lats is None:
+        raise LookupError('Could not find latitudes.')
+
+    ###################################################
+    # GET DATA                                        #
+    ###################################################
+    lev = args.level
+    time = args.step
+    data = get_data(vid, lev=lev, time=time)
+
+    ###################################################
+    # SET UP MAP                                      #
+    ###################################################
+    # ========== CHOSE PROJECTION TYPE =========== #
+    # For small sections, use transverse equidistant cylindrical projection.
+    # For large sections, use regular    equidistant cylindrical projection.
+
+    lonmin = np.min(lons)
+    lonmax = np.max(lons)
+    latmin = np.min(lats)
+    latmax = np.max(lats)
+    small = True
+
+    
+    if lonmax - lonmax > 180:
+        small = False
+    elif latmax - latmin > 90:
+        small = False
+    elif args.plot_globe:
+        small = False
+
+    if small:
+        r1 = 6378137.00         # (m) radius at equator
+        r2 = 6356752.3142       # (m) radius at pole
+        lon_0 = np.mean((lonmin, lonmax))
+        lat_0 = np.mean((latmin, latmax))
+        lat_1 = lat_0
+        minabslat = np.min(np.abs(lats))
+        delta_lon = lonmax - lonmin
+        delta_lat = latmax - latmin
+        width = r1 * np.pi / 180. * delta_lon * np.cos(np.pi/180 * minabslat)
+        height = r2 * np.pi / 180 * delta_lat
+        m = Basemap(projection='lcc',
+                width=width*1.1, height=height*1.1,
+                lon_0=lon_0, lat_0=lat_0, lat_1=lat_1,
+                resolution=args.resolution)
+    else:
+        m = Basemap(projection='cyl', llcrnrlon=lonmin, llcrnrlat=latmin,
+                urcrnrlon=lonmax, urcrnrlat=latmax, resolution=args.resolution)
+
+    m.drawcoastlines()
+
+    loninc = (lonmax - lonmin) / np.cos(np.mean(lats) * np.pi/180) / 5
+    latinc = (latmax - latmin) / 5
+    inc_steps = [0.25, 0.5, 1, 2, 5, 10, 15, 30, 45, 60]
+    for step in inc_steps[::-1]:
+        if loninc > step:
+            loninc = step
+            break
+    for step in inc_steps[::-1]:
+        if latinc > step:
+            latinc = step
+            break
+
+    m.drawparallels(np.arange(-90, 90.1, latinc), labels=[True, False, False, False])
+    m.drawmeridians(np.arange(-180, 180.1, loninc), labels=[False, False, False, True])
+
+    ###################################################
+    # vmin, vmax                                      #
+    ###################################################
+    vmin = args.vmin
+    vmax = args.vmax
+    if vmin is None:
+        vmin = np.nanmin(data)
+    if vmax is None:
+        vmax = np.nanmax(data)
+
+    ###################################################
+    # COLOR SETTING                                   #
+    ###################################################
+    is_categorical = args.is_categorical
+    is_continuous = args.is_continuous
+    if True not in [is_categorical, is_continuous]:
+        is_continuous = True
+    assert is_categorical != is_continuous
+
+    Ncolors = args.ncol
+    if Ncolors is None:
+        if is_categorical:
+            Ncolors = int(np.ceil(vmax - vmin)) + 1
+        else:
+            Ncolors = 12
+    cmap_name = args.colormap
+    cmap = plt.get_cmap(cmap_name, Ncolors)
+
+    ###################################################
+    # PLOT DATA                                       #
+    ###################################################
+    if len(np.shape(lons)) == 1:
+        lons, lats = np.meshgrid(lons, lats)
+    x, y = m(lons, lats)
+
+    if is_continuous:
+        plt.contourf(x, y, data, cmap=cmap, vmin=vmin, vmax=vmax)
+    else:
+        plt.pcolormesh(x, y, data, cmap=cmap, vmin=vmin, vmax=vmax,
+                rasterized=True)
+
+    ###################################################
+    # COLORBAR                                        #
+    ###################################################
+    vinc = (vmax - vmin) / Ncolors
+    vticks = np.arange(vmin, vmax+0.5*vinc, vinc)
+    cb = plt.colorbar()
+    cb.set_ticks(vticks)
+
+    ###################################################
+    # TITLE                                           #
+    ###################################################
+    title = args.title
+    if title is not None:
+        plt.suptitle(title)
+
+    ###################################################
+    # SAVE                                            #
+    ###################################################
+    fno = args.fno
+    dpi = args.dpi
+    if dpi is None:
+        if fno[-3] == 'eps':
+            dpi = 20
+        else:
+            dpi = 200
+    plt.savefig(fno, dpi=dpi)

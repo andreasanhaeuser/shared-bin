@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Issue alert if machine gets disconnected from AC adapter
+
+# ========== SETUP =========================== #
+
+sound_file=~/shared/sounds/industrial_alarm.mp3
+sound_file=~/shared/sounds/sonar.wav
+volume='75%'
+# ============================================ #
+
+###################################################
+# GET CURRENT CONNECTION STATUS                   #
+###################################################
+line=$(acpi -a)
+
+if [[ $line = *"off"* ]]
+then
+    connected=false
+elif [[ $line = *"on"* ]]
+then
+    connected=true
+else
+    echo "ERROR: Cannot determine AC adapter connection status."
+    exit
+fi
+
+# check whether ac is connected
+if ! $connected
+then
+    echo "AC adapter not connected."
+    exit
+fi
+
+# check whether sound file exists
+if [ ! -f $sound_file ]
+then
+    echo "ERROR: Sound file does not exist: ${sound_file}"
+    exit
+fi
+
+echo "Watching AC adapter connection..."
+
+while true
+do
+    line=$(acpi -a)
+    if [[ $line = *"off"* ]]
+    then
+        pactl set-sink-mute 0 0
+        pactl set-sink-volume 0 $volume || exit
+        play $sound_file
+    fi
+
+    sleep 0.01
+done

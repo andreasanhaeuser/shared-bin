@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Issue notification box if battery charge critical
+
+# ========== SETUP =========================== #
+sleep_time_normal=5m
+sleep_time_crit=1m
+charge_crit_low=20      # per cent
+charge_low=30           # per cent
+charge_high=80          # per cent
+charge_crit_high=90     # per cent
+# ============================================ #
+
+while true
+do
+    # ========== get battery status ============== #
+    line=$(acpi -b)
+
+    # ========== get charging status ============= #
+    if [[ $line = *"Discharging"* ]]
+    then
+        charging=false
+    elif [[ $line = *"Charging"* ]]
+    then
+        charging=true
+    else
+        echo "ERROR: Cannot determine charging status."
+        exit
+    fi
+
+    # ========== get charge ====================== #
+    word=$(echo $line | cut -d ',' -f 2)
+    len=${#word}
+    charge=${word:1:len-2}  # strip ' ' and '%'
+
+    # ========== send notification =============== #
+    sleep_time=$sleep_time_normal
+
+    if $charging
+    then
+        # charging
+        if [ $charge -ge $charge_crit_high ]
+        then
+            header='Battery charge critically high' 
+            message="Charge: $charge%. Remove charger now." 
+            notify-send $header $message -u critical
+            sleep_time=$sleep_time_crit
+        elif [ $charge -ge $charge_high ]
+        then
+            notify-send 'Battery charged' "Charge: $charge%"
+        fi
+
+    else
+        # discharging
+        if [ $charge -le $charge_crit_low ]
+        then
+            header='Battery charge critically low' 
+            message="Charge: $charge%. Charge now." 
+            notify-send $header $message -u critical
+            sleep_time=$sleep_time_crit
+        elif [ $charge -le $charge_low ]
+        then
+            notify-send 'Battery low' "Charge: $charge%"
+        fi
+    fi
+
+    # ========== sleep =========================== #
+    sleep $sleep_time
+done

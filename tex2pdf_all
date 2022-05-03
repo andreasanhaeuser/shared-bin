@@ -1,0 +1,11 @@
+#!/bin/bash
+
+DIR=$(dirname "$1")
+BASENAME=$(basename "$1" .tex)
+
+cd $DIR
+pdflatex "${BASENAME}.tex"
+bibtex "${BASENAME}.aux"
+makeglossaries "${BASENAME}"
+pdflatex "${BASENAME}.tex"
+pdflatex "${BASENAME}.tex"

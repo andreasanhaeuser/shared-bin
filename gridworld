@@ -1,0 +1,12 @@
+#!/bin/bash
+# Run gridworld
+
+export TERM=xterm-256color
+
+world=$1
+dirname_work="$HOME/shared/devel/ai-safety-gridworlds"
+dirname_script='ai_safety_gridworlds/environments'
+scriptname="${dirname_script}/${world}.py"
+
+cd $dirname_work
+python3 $scriptname

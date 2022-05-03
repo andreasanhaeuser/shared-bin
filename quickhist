@@ -1,0 +1,458 @@
+#!/usr/bin/python3
+
+# standard modules
+import os
+import sys
+import argparse
+import collections
+import warnings
+
+# PyPI modules
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import rc
+from netCDF4 import Dataset
+
+# default --------------------------------------------
+_nbins = 200
+_figsize = (297/25.4, 210/25.4)
+_fontsize = 8
+
+_color_neg = (1.0, 0.3, 0.3)
+_color_zero = 'k'
+_color_pos = (0.3, 0.3, 1.0)
+
+_color_cum = 'r'
+_color_cum_inv = 'b'
+#  ---------------------------------------------------
+
+rc('text', usetex=False)
+rc('font', size=_fontsize)
+
+################################################################
+# main                                                         #
+################################################################
+def load(filename, varname):
+    units = None
+    with Dataset(filename, 'r') as fid:
+        fid.set_auto_mask(False)
+        vid = get_variable_handle(fid, varname)
+        values = vid[:]
+        attnames = vid.ncattrs()
+        for attname in attnames:
+            if attname in ('unit', 'units'):
+                units = vid.getncattr(attname)
+
+    valid = np.isfinite(values)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', RuntimeWarning)
+        valid &= values < 1e35
+        valid &= values > -1e35
+    values[~valid] = np.nan
+
+    if np.sum(valid) == 0:
+        print('Error: All values are invalid.')
+        sys.exit(1)
+
+    return values, units
+
+def main(z, fno=None, nbins=_nbins, quantiles=None, zlo=None, zhi=None, log=True,
+        xlabel='value', extent='both', title=''):
+    # default values
+    if zlo is None:
+        zlo = get_zlo(z)
+    if zhi is None:
+        zhi = get_zhi(z)
+    if quantiles is None:
+        quantiles = get_quantiles(z)
+
+    check_input(z, nbins, quantiles, zlo, zhi)
+
+    bins = get_bins(nbins, zlo, zhi, log)
+
+    # get statistics
+    # =====================================================
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', RuntimeWarning)
+        z_neg = z[z < 0.]
+        z_pos = z[z > 0.]
+    z_clean = z[np.isfinite(z)]
+    hist, bin_edges = np.histogram(z_clean, bins=bins)
+    
+    Ntotal = np.prod(np.shape(z))
+    Nneg = len(z_neg)
+    Nzero = np.sum(z==0.)
+    Npos = len(z_pos)
+    Nvalid = Nneg + Nzero + Npos
+    Ninvalid = Ntotal - Nvalid
+
+    z_quantiles = get_z_quantiles(z, quantiles)
+    z_quantiles_pos = get_z_quantiles(z_pos, quantiles)
+    z_quantiles_neg = - get_z_quantiles(- z_neg, quantiles)
+
+    z_mean = np.nanmean(z)
+    z_mean_pos = np.mean(z_pos)
+    z_mean_neg = np.mean(z_neg)
+
+    z_std = np.nanstd(z)
+    z_std_pos = np.std(z_pos)
+    z_std_neg = np.std(z_neg)
+
+    # plot ================================================
+    plt.figure(figsize=_figsize)
+    make_bars(hist)
+    make_cumlines(hist)
+    make_quantiles(quantiles, z_quantiles, zlo, zhi, hist)
+    
+    plt.xlabel(xlabel, usetex=False)
+    plt.ylabel('frequency')
+
+    ax = plt.gca()
+    ax.set_yscale('log')
+
+    bins_per_decade = get_bins_per_decade(nbins, zlo, zhi)
+    make_xticks(bins, bins_per_decade, log)
+    set_xlimits(bins, hist, extent)
+    set_ylimits(hist)
+    plt.grid()
+
+    plt.title(title, usetex=False)
+    if fno is None:
+        plt.show()
+    else:
+        print('Figure saved: ' + fno)
+        plt.savefig(fno)
+
+################################################################
+# helpers                                                      #
+################################################################
+def get_quantiles(z):
+    N = np.prod(np.shape(z))
+
+    # smallest fraction that is of interest
+    frac_min = 1. / N
+
+    # smallest decadic exponent
+    emin = int(np.ceil(np.log10(frac_min)))
+
+    # decadic quantiles < 0.5
+    quantiles_lo = [10**e for e in range(emin, 0)]
+
+    # quartiles
+    quantiles_mi = [0.25, 0.5, 0.75]
+
+    # decadic quantiles > 0.5
+    quantiles_hi = [1. - q for q in quantiles_lo[::-1]]
+
+    quantiles = quantiles_lo + quantiles_mi + quantiles_hi
+    return quantiles
+
+def make_quantiles(quantiles, z_quantiles, zlo, zhi, hist):
+    fontsize = _fontsize * 0.8
+    color = (0, 0, 0, 1)
+    i_quantiles = []
+    N = len(hist)
+    zlo_neg = -zlo
+    zhi_neg = -zhi
+    ilo_neg = N//2
+    ilo_pos = N//2 + 1
+    ihi_neg = 0
+    ihi_pos = N
+    elo = np.log10(zlo)
+    ehi = np.log10(zhi)
+    espan = ehi - elo
+    ymin, ymax = get_ylims(hist)
+    for nq, zq in enumerate(z_quantiles):
+        if abs(zq) < zlo:
+            alpha = (zq - zlo_neg) / (2*zlo)
+            iq = ilo_neg + alpha
+        elif zq < 0:
+            e = np.log10(-zq)
+            alpha = (ehi - e) / espan
+            iq = ihi_neg + alpha * (N//2)
+        elif zq > 0:
+            e = np.log10(zq)
+            alpha = (e - elo) / espan
+            iq = ilo_pos + alpha * (N//2)
+
+        ylo = ymin
+        yhi = 1
+        lw = 1
+        quantile = quantiles[nq]
+        if quantile == 0.5:
+            yhi = ymax
+            lw *= 2
+        plt.plot([iq, iq], [ylo, yhi], '-', color=color, lw=lw, zorder=10)
+        text = ('%s (%1.2e)' % (quantile, zq))
+        x = iq # - N / 400
+        y = ymin * 1.3
+        if ilo_neg <= iq <= ilo_pos:
+            color = 'grey'
+        else:
+            color = 'black'
+        plt.text(
+                x, y, text, color=color, rotation=90, size=fontsize,
+                horizontalalignment='right', verticalalignment='bottom',
+                )
+
+def make_cumlines(hist):
+    cumhist = np.cumsum(hist)
+    cumhist_inv = np.cumsum(hist[::-1])[::-1]
+    N = len(hist)
+    idx = range(1, N+1)
+    plt.step(idx, cumhist, '-', color=_color_cum)
+    plt.step(idx, cumhist_inv, '-', color=_color_cum_inv)
+
+def make_one_bar(hist, nlo, nhi, color):
+    idx = range(nlo, nhi+1)
+    plt.bar(idx, hist[idx], color=color, width=1.00, align='edge')
+
+def make_bars(hist):
+    N = len(hist)
+    Nlo = N//2
+    Nhi = N//2 + 1
+    hist_neg = hist[:Nlo]
+    make_one_bar(hist, 0, Nlo, _color_neg)
+    make_one_bar(hist, Nlo, Nhi, _color_zero)
+    make_one_bar(hist, Nhi, N-1, _color_pos)
+
+def set_xlimits(bins, hist, extent='both'):
+    N = len(bins)
+    ilo = np.where(hist>0)[0][0] - 2
+    ihi = np.where(hist>0)[0][-1] + 3
+    if extent == 'both':
+        pass
+    elif extent == 'neg':
+        ihi = N//2 - 1
+    elif extent == 'pos':
+        ilo = N//2
+    else:
+        raise Exception
+
+    plt.xlim(ilo, ihi)
+    
+    return ilo, ihi
+
+def get_ylims(hist):
+    ymin = 0.1
+    ymax = 1.5 * np.sum(hist)
+    return ymin, ymax
+
+def set_ylimits(hist):
+    ymin, ymax = get_ylims(hist)
+    plt.ylim(ymin, ymax)
+    return ymin, ymax
+
+def make_xticks(bins, bins_per_decade, log=True):
+    if not log:
+        raise NotImplementedError()
+
+    N = len(bins)
+    nzero = N // 2
+    z_neg = np.arange(0, nzero, bins_per_decade)
+    z_pos = np.arange(nzero, N, bins_per_decade)
+    ticks = np.concatenate((z_neg, z_pos))
+    labels = []
+    Nticks = len(ticks)
+    for ntick, tick in enumerate(ticks):
+        value = bins[tick]
+        if value < 0:
+            sign = '-'
+        else:
+            sign = ''
+        exponent = np.round(np.log10(abs(value)))
+        label = r'$%s10^{%i}$' % (sign, exponent)
+        if ntick in (Nticks//2 - 1, Nticks//2):
+            label = ''
+        labels.append(label)
+
+    plt.xticks(ticks, labels)
+    return ticks, labels
+
+def get_z_quantiles(z, quantiles):
+    z = z[np.isfinite(z)]
+    if len(z) < 2:
+        return np.nan * np.ones_like(quantiles)
+
+    z_quantiles = []
+    for q in quantiles:
+        zq = np.quantile(z, q)
+        z_quantiles.append(zq)
+    return np.array(z_quantiles)
+    
+def get_bins_per_decade(nbins, zlo, zhi):
+    elo = np.log10(zlo)
+    ehi = np.log10(zhi)
+    Ndecades = 2 * (ehi - elo)
+    bpd = int(np.ceil(nbins / Ndecades))
+    return bpd
+
+def get_bins(nbins, zlo, zhi, log=True):
+    if not log:
+        raise NotImplementedError()
+    bins_per_decade = get_bins_per_decade(nbins, zlo, zhi)
+    
+    elo = np.log10(zlo)
+    ehi = np.log10(zhi)
+    e_inc = 1. / bins_per_decade
+    exponents = np.arange(elo, ehi + e_inc/2, e_inc)
+    bins_pos = 10**exponents
+    bins_neg = - bins_pos[::-1]
+    bins = np.concatenate((bins_neg, bins_pos))
+    return bins
+
+def check_input(z, nbins, quantiles, zlo, zhi):
+    if not isinstance(nbins, int):
+        raise TypeError('nbins must be int.')
+    if not int(nbins) > 0:
+        raise ValueError('nbins must be positive.')
+
+    if not isinstance(quantiles, collections.Iterable):
+        raise TypeError('quantiles must be iterable')
+    for q in quantiles:
+        if not 0 <= q <= 1:
+            raise ValueError('quantiles must be between 0 and 1')
+
+    if not (0 <= zlo < zhi):
+        raise ValueError('zlo and zhi must fulfill 0 <= zlo < zhi.')
+
+def get_zlo(z):
+    z_abs = np.abs(z)
+    z_abs[z_abs==0] = np.nan
+    exact = np.nanmin(z_abs)
+    e = np.log10(exact)
+    elo = np.floor(e)
+    zlo = 10**elo
+    return zlo
+
+def get_zhi(z):
+    exact = np.nanmax(np.abs(z))
+    e = np.log10(exact)
+    ehi = np.ceil(e)
+    zhi = 10**ehi
+    zlo = get_zlo(z)
+    if zhi == zlo:
+        zhi *= 10
+    return zhi
+
+def get_variable_handle(fid, varname):
+    """Return a nc-variable handle."""
+    candidates = fid.variables
+    for candidate in candidates:
+        if candidate == varname:
+            return fid.variables[candidate]
+
+    groups = fid.groups
+    for group in groups:
+        gid = groups[group]
+        vid = get_variable_handle(gid, varname)
+        if vid is not None:
+            return vid
+
+    return None
+
+def find_variables(fid, min_axes=1):
+    varnames = []
+    shapes = []
+
+    candidates = fid.variables
+    for varname in candidates:
+        shape = fid.variables[varname].shape
+        if len(shape) < min_axes:
+            continue
+        varnames.append(varname)
+        shapes.append(shape)
+
+    groups = fid.groups
+    for group in groups:
+        gid = groups[group]
+        g_varnames, g_shapes = find_variables(gid, min_axes)
+        varnames += g_varnames
+        shapes += g_shapes
+
+    return varnames, shapes
+
+def ask_for_varname(filename):
+    """Return a str."""
+    # gather suitable variable names
+
+    with Dataset(filename, 'r') as fid:
+        fid.set_auto_mask(False)
+        varnames, shapes = find_variables(fid, 1)
+
+    # Compose prompt
+    text = 'Select variable:\n'
+    for n, varname in enumerate(varnames):
+        line = '[%i] %s %s\n' % (n, str(shapes[n]), varname)
+        text = text + line
+    line = '[q] quit\n'
+    text = text + line
+    line = '> '
+    text = text + line
+
+    answer = input(text)
+    if answer == 'q':
+        sys.exit(0)
+
+    # interpret as index
+    if answer.isdecimal():
+        N = len(varnames)
+        n = int(answer)
+        if 0 <= n < N:
+            varname = varnames[n]
+            print('selected: %s' % varname)
+            return varname
+        else:
+            print('Error: Out of range.')
+            return ask_for_varname(filename)
+
+    # interpret as varname
+    if answer in varnames:
+        return answer
+
+    print('Error: Variable not found.')
+    return ask_for_varname(filename)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            )
+
+    parser.add_argument(dest='filename_in', default=None, help='input file')
+    parser.add_argument(
+            dest='varname', nargs='?', default=None, help='variable name',
+            )
+    parser.add_argument('-f', '--filename_out',
+            default=None, help='output file',
+            )
+    parser.add_argument('-t', '--title', default=None, help='plot title') 
+    parser.add_argument('-s', '--sampling', default=1, type=int,
+            help='data sampling first dimension',)
+    parser.add_argument('-o', '--sampling_offset', default=0, type=int,
+            help='offset when sampling',)
+    parser.add_argument(
+            '-x', '--xlabel', default=None, help='label for x-axis',
+            )
+
+    args = parser.parse_args()
+
+    filename_in = args.filename_in
+    filename_out = args.filename_out
+    varname = args.varname
+    if varname is None:
+        varname = ask_for_varname(filename_in)
+
+    title = args.title
+    if title is None:
+        title = os.path.basename(filename_in)
+
+    print('Load %s in %s ...' % (varname, filename_in))
+    values, units = load(filename_in, varname)
+    xlabel = '%s / %s' % (varname, units)
+    sampling = args.sampling
+    if sampling > 1:
+        print('Sample (1/%i) ...' % sampling)
+        n0 = args.sampling_offset
+        values = values[n0::sampling]
+    print('Create histogram...')
+    main(values, filename_out, title=title, xlabel=xlabel)

@@ -1,0 +1,47 @@
+#!/bin/bash
+
+hline='******************************************'
+
+# install software via apt
+echo $hline
+echo "INSTALL MISSING PYTHON PACKAGES VIA APT..."
+apt_packages='
+    python3-pip
+    pylint3
+    ipython3
+    python3-cartopy
+    python3-ephem
+    python3-fiona
+    python3-gdal
+    python3-geopandas
+    python3-h5netcdf
+    python3-holidays
+    python3-matplotlib
+    python3-netcdf4
+    python3-numpy
+    python3-pandas
+    python3-paramiko
+    python3-psutil
+    python3-pyproj
+    python3-pysal
+    python3-rasterio
+    python3-rtree
+    python3-scipy
+    python3-scp
+    python3-shapely
+    python3-unidecode
+    python3-xstatic-roboto-fontface
+'
+sudo apt update
+sudo apt install $apt_packages
+
+# install via pip
+echo $hline
+echo "INSTALL MISSING PYTHON PACKAGES VIA PIP..."
+pip_packages='
+    elevation
+    missingno
+    planar
+    pyreadr
+'
+sudo -H pip3 install -U $pip_packages

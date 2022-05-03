@@ -1,0 +1,8 @@
+#!/bin/bash
+
+apt_packages='
+    ncview
+    '
+sudo apt install $apt_packages
+
+    # gvipng

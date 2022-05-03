@@ -1,0 +1,33 @@
+#!/bin/bash
+
+infile=$1
+outfile=$2
+
+if [ -z $infile ]
+then
+    infiles=$(ls *.fit)
+    for infile in $infiles
+    do
+        garmin2gpx $infile
+    done
+    exit
+fi
+
+if [ -z $outfile ]
+then
+    outfile=${infile/'.fit'/'.gpx'}
+fi
+
+if [ -f $outfile ]
+then
+    echo "Output file exists: $outfile"
+    echo -n "Overwrite? [y/n] > "
+    read answer
+
+    case $answer in
+        [yY]) true ;;
+        *) exit 1 ;;
+    esac
+fi
+
+gpsbabel -i garmin_fit -f $infile -o gpx -F $outfile

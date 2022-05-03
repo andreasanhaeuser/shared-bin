@@ -1,0 +1,10 @@
+#!/bin/bash
+
+line=$(acpi -b)
+
+if [[ $line = *"ischarging"* ]]
+then
+    echo 'discharging'
+else
+    echo 'charging'
+fi

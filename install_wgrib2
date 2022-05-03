@@ -1,0 +1,24 @@
+#!/bin/bash
+# This follows the description on
+# http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/compile_questions.html
+
+src='ftp://ftp.cpc.ncep.noaa.gov/wd51we/wgrib2/wgrib2.tgz'
+dest=~/shared/bin
+
+if [ ! -d $dest ]
+then
+    mkdir -p $dest || exit
+fi
+
+cd $dest
+wget $src || exit
+tar -xzvf wgrib2.tgz || exit
+cd grib2
+export CC=gcc
+export FC=gfortran
+make
+make lib
+
+rm $dest/wgrib2.tgz
+echo '*************************************************'
+echo "You need to add ${dest}/grib/wgrib2 to your "'$PATH'.

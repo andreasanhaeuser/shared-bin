@@ -1,0 +1,27 @@
+#!/bin/bash
+
+system=$1
+
+if [[ $system = 'google' ]]
+then
+    color='\033[01;35m'     # purple
+elif [[ $system = 'private' ]]
+then
+    color='\033[01;37m'     # bold
+elif [[ $system = 'gp' ]]
+then
+    color='\033[01;36m'     # green
+elif [[ $system = 'meteo' ]]
+then
+    color='\033[01;33m'     # yellow
+elif [[ $system = 'wrf' ]]
+then
+    color='\033[01;33m'     # yellow
+elif [[ $system = 'creodias' ]]
+then
+    color='\033[01;32m'     # green
+else
+    color='\033[0m'
+fi
+
+echo $color

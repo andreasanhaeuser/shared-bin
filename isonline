@@ -1,0 +1,19 @@
+#!/bin/bash
+#
+# SYNOPSIS
+# -------
+#   isonline REOMTE_NAME
+#
+# DESCRIPTION
+# -----------
+#   check whether remote machine is online
+# 
+# Return
+# ------
+# 0 if online
+# 1 if offline
+
+remote_name=$1
+
+nc -z $1 22 2> /dev/null
+exit $?

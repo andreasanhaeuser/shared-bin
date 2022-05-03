@@ -1,0 +1,381 @@
+#!/usr/bin/env python3
+"""Show contact information of IGMK staff.
+
+Description
+-----------
+Shows  
+
+    - name
+    - room
+    - email adress
+    - phone number
+    - website
+
+of insitute staff if any of their contact data match the pattern.
+
+Maintenance
+-----------
+If the website changes, the function `download` needs to be modified.
+
+Author
+------
+Andreas Anhaeuser (2015-2016)
+Institute for Geophysics and Meteorology
+University of Cologne
+Germany
+<anhaeus@meteo.uni-koeln.de>
+"""
+import os
+import sys
+import argparse
+import getpass
+
+# ========== SETUP =========================== #
+_username = getpass.getuser()
+_filename = os.path.expanduser('~/shared/.contacts.txt')
+_url = 'http://www.geomet.uni-koeln.de/das-institut/mitarbeiter/'
+# ============================================ #
+
+_keys = ['longname', 'email', 'tel', 'room', 'shortname', 'group', 'field']
+
+###################################################
+# MAIN                                            #
+###################################################
+def main():
+    idx = __doc__.index('Maintenance')
+    doc = __doc__[:idx]
+    parser = argparse.ArgumentParser(description=doc,
+        formatter_class=argparse.RawDescriptionHelpFormatter,)
+    parser.add_argument('-a', '--all', dest='show_all', action='store_true',
+            help='show all staff')
+    parser.add_argument('-i', '--info', dest='show_info', action='store_true',
+            help='show meta info on this program')
+    parser.add_argument('-u', '--update', dest='update', action='store_true',
+            help='update contact list from igmk web site')
+    parser.add_argument('pattern', metavar='pattern', nargs='?', 
+            default=None, help='the pattern to search for')
+
+    args = parser.parse_args()
+
+    # update
+    if args.update:
+        print('Download current contact data\nfrom:  %s\nto:    %s ...' %
+                (_url, _filename))
+        update(_filename)
+        print('Done.')
+
+    else:
+        # load information
+        if not os.path.isfile(_filename):
+            db = update(_filename)
+        else:
+            db = load(_filename)
+
+        # show all
+        if args.show_all:
+            print('Complete list:\n')
+            find(db, '')
+
+        # show info
+        elif args.show_info:
+            width = 14
+            print('Source URL:'.ljust(width) + _url)
+            print('Local file:'.ljust(width) + _filename)
+            print('Last update:'.ljust(width) + db['date'] + '\n')
+
+        # show help
+        elif not args.pattern:
+            parser.print_help()
+
+        # show contact(s)
+        else:
+            find(db, args.pattern)
+
+###################################################
+# HIGH-LEVEL FUNCTIONS                            #
+###################################################
+def divide_text_into_blocks(text):
+    """*Helper function.
+        
+        Parameters
+        ----------
+        text : str
+
+        Returns
+        -------
+        list of str
+    """
+    sphrase = '<div class="uzk15__addressblock">'
+    L = len(sphrase)
+    blocks = []
+
+    while True:
+        idx = text.find(sphrase)
+        assert idx >= 0
+        sidx = idx + L
+
+        eidx = text.find(sphrase, sidx)
+
+        block = text[sidx:eidx]
+        blocks.append(block)
+        text = text[eidx:]
+
+        if eidx < 0:
+            break
+    return blocks
+
+def download():
+    """Download contacts from web site.
+
+    """
+    from bs4 import BeautifulSoup as bs
+    from urllib3 import urlopen
+    import datetime as dt
+
+    try:
+        soup = bs(urlopen(_url))
+    except:
+        print('Cannot acces ' + _url)
+        return
+    txt = soup.prettify()
+
+    startphrase_glob = '<div class"tx-ttaddress-pi1">'
+    endphrase_glob = '<footer class="uzk15__mainfooter">'
+    S = len(startphrase_glob)
+
+    sidx = txt.find(startphrase_glob) + S
+    eidx = txt.find(endphrase_glob, sidx)
+    txt = txt[sidx:eidx]
+
+    blocks = divide_text_into_blocks(txt)
+    
+    N = len(blocks)
+    shortname = [''] * N
+    longname  = [''] * N
+    email     = [''] * N
+    tel       = [''] * N
+    room      = [''] * N
+    group     = [''] * N
+    field     = [''] * N
+
+    eidx = 0
+    n = -1
+    for n in range(N):
+        block = blocks[n]
+        shortname[n] = get_shortname(block)
+        longname[n] = get_longname(block)
+        email[n] = get_email(block)
+        tel[n] = get_tel(block)
+        room[n] = get_room(block)
+        group[n] = get_group(block)
+        field[n] = get_field(block)
+
+    return {
+            'longname' : longname[:n],
+            'shortname' : shortname[:n],
+            'email' : email[:n],
+            'tel' : tel[:n],
+            'room' : room[:n],
+            'group' : group[:n],
+            'field' : field[:n],
+            'number' : n,
+            'date' : dt.datetime.now(),
+            }
+
+def save(db, file_out):
+    N = db['number']
+
+    if os.path.isfile(file_out):
+        os.remove(file_out)
+    fid = open(file_out, 'w')
+
+    fid.write('date: '   + str(db['date']))
+    fid.write('\nnumber: ' + str(db['number']))
+    
+    for n in range(N):
+        fid.write('\n')
+        for key in _keys:
+            fid.write('\n' + key + ': ' + db[key][n])
+    fid.close()
+
+def update(file_out):
+    db = download()
+    save(db, file_out)
+    return db
+
+def load(file_in):
+    fid = open(file_in, 'r')
+    txt = fid.read()
+    fid.close()
+
+    db = {}
+
+    # date:
+    phrase = 'date: '
+    ibeg = txt.find(phrase) + len(phrase)
+    iend = txt.find('\n', ibeg)
+    db['date'] = txt[ibeg:iend]
+
+    # number:
+    phrase = 'number: '
+    ibeg = txt.find(phrase) + len(phrase)
+    iend = txt.find('\n', ibeg)
+    db['number'] = int(txt[ibeg:iend])
+
+    N = db['number']
+
+    for key in _keys:
+        db[key] = [''] * N
+
+    imax   = 0
+    for n in range(N):
+        iblock = imax
+        for key in _keys:
+            ilo = txt.find(key, iblock) + len(key) + 2
+            ihi = txt.find('\n', ilo)
+            db[key][n] = txt[ilo:ihi]
+            if ihi > imax:
+                imax = ihi
+
+    return db
+
+def find(db, name):
+    keycol = '\033[01m'
+    ccol   = '\033[01m'
+    nocol  = '\033[00m'
+    indent  = ' ' * 4
+    urlprfx = 'http://www.geomet.uni-koeln.de/das-institut/mitarbeiter/'
+    phoneprfx = ''
+
+    N    = db['number']
+    date = db['date']
+    name = name.lower()
+
+    count = 0
+    for n in range(N):
+        found = False
+        for key in _keys:
+            if name in db[key][n].lower():
+                found = True
+                break
+        if not found:
+            continue
+        count += 1
+
+        group = db['group'][n]
+        field = db['field'][n]
+        if any(group) and any(field):
+            field = '(' + field + ')'
+        where = group + field
+
+        # print('')
+        # print(keycol + indent + 'Name    ' + ccol + db['longname'][n])
+        # print(keycol + indent + 'Group   ' + ccol + db['group'][n] + field)
+        # print(keycol + indent + 'Phone   ' + ccol + phoneprfx + db['tel'][n])
+        # print(keycol + indent + 'Room    ' + ccol + db['room'][n])
+        # print(keycol + indent + 'E-Mail  ' + ccol + db['email'][n])
+        # print(keycol + indent + 'URL     ' + ccol + urlprfx + db['shortname'][n])
+
+        print('')
+        print(indent + ccol + db['longname'][n] + nocol)
+        if any(where):
+            print(indent + where)
+        print(indent + phoneprfx + db['tel'][n])
+        print(indent + db['room'][n])
+        print(indent + db['email'][n])
+        print(indent + urlprfx + db['shortname'][n])
+ 
+    # separator line
+    print('')
+
+    # count
+    if count > 1:
+        print(indent + 'Found ' + str(count) + ' matches.')
+    if count == 0:
+        print(indent + keycol + indent + 'Could not find any match.')
+ 
+    # general info
+    print(
+        nocol +  indent + '(Total number of entries: ' + str(N) + 
+        '. Last updated: ' + str(date) + ')\n')
+
+###################################################
+# GET ELEMENT                                     #
+###################################################
+# generic
+def get_element(block, sphrase, ephrase, remove=None):
+    L = len(sphrase)
+    sidx = block.find(sphrase) + L
+    eidx = block.find(ephrase, sidx)
+    if sidx < L:
+        return ''
+    if eidx < 0:
+        return ''
+
+    element = block[sidx:eidx]
+
+    if remove is not None:
+        if remove in element:
+            element =  element.replace(remove, '')
+
+    element = element.strip().replace('  ', ' ')
+    return element
+
+# specific
+def get_longname(block):
+    sphrase = 'target="_blank">'
+    ephrase = '</a>'
+    element = get_element(block, sphrase, ephrase)
+
+    # special case (Sabrina Schnitt)
+    if not any(element):
+        sphrase = '<strong>'
+        ephrase = '</strong>'
+        element = get_element(block, sphrase, ephrase)
+
+    return element
+
+def get_shortname(block):
+    sphrase = '/das-institut/mitarbeiter/'
+    ephrase = '"'
+    remove = '/'
+    return get_element(block, sphrase, ephrase, remove)
+
+def get_email(block):
+    sphrase = 'mailto:'
+    ephrase = '"'
+    return get_element(block, sphrase, ephrase).lower()
+
+def get_room(block):
+    sphrase = 'Raum'
+    ephrase = '</span>'
+    remove = '</label>'
+    return get_element(block, sphrase, ephrase, remove)
+
+def get_tel(block):
+    sphrase = 'tel:'
+    ephrase = '">'
+    remove = '+49" target="(0)221" class="'
+    return '+49 (0)221 ' + get_element(block, sphrase, ephrase, remove)
+
+def get_group(block):
+    sphrase = 'AG '
+    ephrase = '</span>'
+    element = get_element(block, sphrase, ephrase)
+    if any(element):
+        element = sphrase + element
+    return element
+
+def get_field(block):
+    sphrase = 'Bereich'
+    ephrase = '</span>'
+    return get_element(block, sphrase, ephrase) 
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
+

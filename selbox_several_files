@@ -1,0 +1,9 @@
+#!/bin/bash
+
+domain=$1
+fnis=${@:2}
+
+for fni in $fnis
+do
+    selbox $domain $fni
+done

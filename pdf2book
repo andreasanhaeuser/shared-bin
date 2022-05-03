@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# usage: pdf2book infile outfile
+# creates an a5 booklet from an a4 pdf document
+# infile must be a pdf document in a4 with regular page sequence
+# outfile is a pdf where the pages are scaled by 1:2 and which, when printed double-sided can be folded to a booklet
+#
+# Dependencies
+# ============
+# psutils must be installed
+# 
+# Further reading
+# ===============
+# found on http://www.peppertop.com/blog/?p=35
+
+pdf2ps $1 - | psbook | psnup -2 | ps2pdf - $2

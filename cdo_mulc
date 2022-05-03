@@ -1,0 +1,60 @@
+#!/usr/bin/python3
+"""Multiply netcdf dataset with a constant."""
+
+# standard modules
+import os
+import sys
+import argparse
+
+# PyPI modules
+from netCDF4 import Dataset
+
+# parse command-line arguments
+# =========================================================
+parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+parser.add_argument(dest='c', type=float, help='constant')
+parser.add_argument(dest='fni', help='input netcdf file')
+parser.add_argument(dest='fno', help='output netcdf file')
+args = parser.parse_args()
+# =========================================================
+
+# fi1 : file identifier 1 (`1` is only used for consistency with similar code
+#                           where several input files are used)
+c = args.c
+fno = args.fno
+if os.path.isfile(fno):
+    question = 'Output file already exists. Overwrite? [y/n]: '
+    answer = input(question)
+    if answer[:1].lower() != 'y':
+        sys.exit(1)
+
+with Dataset(args.fni, 'r') as fi1:
+    with Dataset(args.fno, 'w') as fo:
+        file_dimensions = fi1.dimensions
+        for dimname in file_dimensions:
+            size = file_dimensions[dimname].size
+            fo.createDimension(dimname, size)
+
+        varnames = fi1.variables
+        for varname in varnames:
+            vi1 = fi1.variables[varname]
+
+            dimensions = vi1.dimensions
+            dtype = vi1.dtype
+            vo = fo.createVariable(varname, dtype, dimensions)
+
+            attnames = vi1.ncattrs()
+            for attname in attnames:
+                attvalue = vi1.getncattr(attname)
+                vo.setncattr(attname, attvalue)
+
+            vals1 = vi1[:]
+            if varname in file_dimensions:
+                value = vals1
+            else:
+                value = vals1 * c
+
+            vo[:] = value

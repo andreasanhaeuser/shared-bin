@@ -1,0 +1,11 @@
+#!/bin/bash
+
+line=$(nmcli con | \grep vpn | \grep $1)
+name=${line:0:26}
+
+if [[ -z "${name// }" ]]
+then
+    name='-'
+fi
+
+echo $name

@@ -1,0 +1,73 @@
+#!/usr/bin/python3
+"""Select a domain box from a netcdf file."""
+
+# standard modules
+import os
+import sys
+import argparse
+
+# PyPI modules
+from misc.in_out import tables as tab
+
+
+# setup ----------------------------------------------
+dirname_grid = '~/gp/data/grid'
+#  ---------------------------------------------------
+
+
+# set up command line parser
+# ----------------------------------------------------
+parser = argparse.ArgumentParser(description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,)
+parser.add_argument(dest='domain', help='domain name')
+parser.add_argument(
+        '-q', '--quiet', action='store_true', help='surpress output',
+)
+parser.add_argument(dest='filename_in', help='input file (netcdf)')
+parser.add_argument(dest='filename_out', help='output file (netcdf)',
+        nargs='?', default=None)
+parser.add_argument(
+        '-d', '--dirname_grid', nargs=1, default=dirname_grid,
+        help='path to grid file directory',
+        )
+args = parser.parse_args()
+
+# retrieve command line arguments
+# ----------------------------------------------------
+domain = args.domain
+fni = args.filename_in
+fno = args.filename_out
+if fno is None:
+    dirname = os.path.dirname(fni)
+    basename = os.path.basename(fni)
+    fno = dirname + '/' + domain + '.' + basename
+dirname_grid = os.path.expanduser(args.dirname_grid)
+
+# retrieve domain ------------------------------------
+fn_grid = dirname_grid + '/%s.txt' % domain
+grid = tab.read_namelist(fn_grid)
+lonmin = grid['lon_min']
+lonmax = grid['lon_max']
+latmin = grid['lat_min']
+latmax = grid['lat_max']
+
+# build command --------------------------------------
+where = '%s,%s,%s,%s' % (lonmin, lonmax, latmin, latmax)
+command = 'cdo sellonlatbox,%s %s %s' % (where, fni, fno)
+if not args.quiet:
+    print(command)
+#  ---------------------------------------------------
+
+dirname_out = os.path.dirname(fno)
+if dirname_out == '':
+    dirname_out = '.'
+if not os.path.isdir(dirname_out):
+    os.makedirs(dirname_out)
+
+# execute
+try:
+    status = os.system(command)
+except Exception:
+    status = 1
+
+sys.exit(status)

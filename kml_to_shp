@@ -1,0 +1,38 @@
+#!/bin/bash
+
+fni=$1
+fno=$2
+
+# input check =============================================
+if [ ! -f $fni ]
+then
+    echo "Input file does not exist: $fni"
+    exit 1
+fi
+
+# build output file name
+# ========================================================
+if [[ $fno == "" ]]
+then
+    fno="$(basename "$fni" .kml).shp"
+fi
+
+# overwrite?
+# ============================================
+if [ -e $fno ]
+then
+    echo "Output already exists: $fno"
+    echo "Overwrite? [y/n]"
+    read answer
+
+    if [[ $answer != "y" ]]
+    then
+        echo "Aborted."
+        exit 1
+    fi
+fi
+
+
+# do it
+# ========================================================
+ogr2ogr -f 'ESRI Shapefile' $fno $fni

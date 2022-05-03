@@ -1,0 +1,113 @@
+-- vim: ts=4 sw=4 noet ai cindent syntax=lua
+--[[
+Conky, a system monitor, based on torsmo
+
+Any original torsmo code is licensed under the BSD license
+
+All code written since the fork of torsmo is licensed under the GPL
+
+Please see COPYING for details
+
+Copyright (c) 2004, Hannu Saransaari and Lauri Hakkarainen
+Copyright (c) 2005-2012 Brenden Matthews, Philip Kovacs, et. al. (see AUTHORS)
+All rights reserved.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+]]
+
+conky.config = {
+    color0 = 'cyan',
+    color1 = 'grey',
+    color2 = 'white',
+    color3 = 'white',
+    diskio_avg_samples=4,
+    font1 = 'sans-serif:normal:size=8',
+    alignment = 'bottom_right',
+    background = false,
+    border_width = 1,
+    cpu_avg_samples = 2,
+    default_bar_height = 4,
+	default_color = 'white',
+    default_graph_height = 25,
+    default_outline_color = 'white',
+    default_shade_color = 'white',
+    double_buffer = true,
+    draw_borders = false,
+    draw_graph_borders = true,
+    draw_outline = false,
+    draw_shades = false,
+    font = 'DejaVu Sans Mono:size=12',
+    gap_x = 0,
+    gap_y = 0,
+    minimum_height = 5,
+	minimum_width = 320,
+    net_avg_samples = 2,
+    no_buffers = true,
+    override_utf8_locale = true,
+    out_to_console = false,
+    out_to_stderr = false,
+    extra_newline = false,
+    own_window = true,
+    own_window_argb_value = 0,
+    own_window_argb_visual = true,
+    own_window_class = 'Conky',
+    own_window_type = 'normal',
+	own_window_hints = 'undecorated,below,skip_taskbar,skip_pager',
+    short_units = true,
+    show_graph_scale = false,
+    show_graph_range = false,
+    stippled_borders = 0,
+    text_buffer_size = 32768,
+    top_cpu_separate = true,
+    update_interval = 1.0,
+    uppercase = false,
+    use_spacer = 'none',
+    use_xft = true,
+    xinerama_head = 1,
+}
+
+conky.text = [[
+${font sans-serif:bold:size=12}${time %A}$alignr${time %H:%M}${font}
+${voffset 4}${time %Y-%m-%d}${alignr}${time %H:%M:%S}
+
+$color0${voffset -20}
+${font sans-serif:bold:size=9}SYSTEM${font sans-serif:normal:size=8}${voffset 4}
+${color1}Host:$alignr$color2$nodename
+${color1}CPU:$alignr$color2${execi 1000 grep model /proc/cpuinfo | cut -d : -f2 | tail -1 | sed 's/\s//' | sed 's/GHz/ GHz/'}
+${color1}Kernel:$alignr$color2$sysname $kernel $machine
+${color1}Distribution:$alignr$color2${execi 1000 cat /etc/issue.net}
+${color1}Last upgrade:$alignr$color2${execi 30 /home/andreas/bin/local/last_upgrade}
+${color1}File System:$alignr$color2${fs_type}
+${color1}Uptime:$alignr$color2$uptime
+
+$color0${voffset 4}
+${font sans-serif:bold:size=9}BATTERY${font sans-serif:normal:size=8}${voffset 4}
+${color1}Capacity:$alignr$color2${execi 1000 battery_capacity_perc}
+${voffset 4}${color1}Status:$alignr $color2${execi 1 battery_status}
+${color1}Remaining:$alignr$color2${battery_time}
+${color1}Charge:$alignr $color2${battery_percent}%
+$color3${battery_bar 4}
+
+$color0${voffset 4}
+${font sans-serif:bold:size=9}DISK${font sans-serif:normal:size=8}${voffset 4}
+${color1}/ $alignr$color2${fs_used /}/${fs_size /} - ${fs_used_perc /}%
+${color3}${fs_bar 4 /}${voffset 4}
+${color1}/boot$alignr$color2${fs_used /boot}/${fs_size /boot} - ${fs_used_perc /boot}%
+$color3${fs_bar 4 /boot}
+
+${voffset 12}${color1}Write:${alignr}$color2${diskio_write}/s ${voffset -12}${color3}${diskiograph_write 25,230 -l}
+${voffset 12}${color1}Read:${alignr}$color2${diskio_read}/s ${voffset -12}${color3}${diskiograph_read 25,230 -l}
+
+# ${alignc}Be bold and mighty forces will come to your aid.
+
+]]

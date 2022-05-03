@@ -1,0 +1,26 @@
+#!/bin/bash
+
+source ~/.bashrc
+export LC_ALL=C.UTF-8
+
+line=$(\tail -1 /var/log/apt/history.log)
+ts_lu=${line:10:20}
+ts_now=$(date)
+
+last_update=$(date -d "$ts_lu" +%s)
+now=$(date -d "$ts_now" +%s)
+days_elapsed=$(( (now - last_update) / 86400 ))
+
+lu_str=${ts_lu:0:10}
+
+
+if [[ $days_elapsed -lt 1 ]]
+then
+    diff_str='today'
+elif [[ $days_elapsed -lt 2 ]]
+then
+    diff_str='one day ago'
+else
+    diff_str="$days_elapsed days ago"
+fi
+echo "$lu_str ($diff_str)"

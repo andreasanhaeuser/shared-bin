@@ -1,0 +1,31 @@
+#!/usr/bin/python3
+"""Print prime factors in the form of 2^3 * 5 * 13^2"""
+
+# standard
+import sys
+
+# misc
+from misc import lists
+from misc.math.primes import prime_factors
+
+args = sys.argv
+
+assert len(args) == 2
+
+x = int(args[1])
+
+factors = prime_factors(x)
+assert any(factors)
+strings = []
+
+unique_factors = lists.unique(factors)
+for factor in unique_factors:
+    exponent = lists.occurences(factors, factor)
+    if exponent == 1:
+        string = '%i' % factor
+    else:
+        string = '%i^%i' % (factor, exponent)
+    strings.append(string)
+
+text = ' * '.join(strings)
+print(text)

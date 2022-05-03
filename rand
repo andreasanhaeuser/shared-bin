@@ -1,0 +1,88 @@
+#!/usr/bin/python3
+"""A random character generator.
+    
+    Synopsis
+    --------
+
+        rand [-a|-b|-d|-n|-h] [-c]
+
+    Options
+    -------
+        -a only alphanumeric characters
+        -b binary: only 0 and 1
+        -d, -n decimal/numeric: only 0-9
+        -h, hexadecimal: 0-9 and A-E
+
+        -c contiguous: do not separate output strings by white spaces (for copy
+            & paste)
+
+    'rand' is intended to be safe for cryptographic purposes. It uses the
+    system's strongest source of randomness (i. e. what python considers as
+    such).
+
+    Dependencies
+    ------------
+    python 3.6 or higher.
+
+    Written by Andreas Anhaeuser.
+"""
+
+import sys
+import secrets
+import string
+
+# setup ----------------------------------------------
+width = 72
+Nlines = 40
+groupsize = 4
+sep = ''
+# ----------------------------------------------------
+
+# select character set
+char_set = string.ascii_letters + string.digits + '<>()[]{}_-/|:;!#$%&*+=?'
+args = sys.argv[1:]
+if len(args) > 0:
+    if '-a' in args:
+        # alphadecimal
+        char_set = string.ascii_letters + string.digits
+    elif '-b' in args:
+        # binary
+        char_set = ('0', '1')
+    elif '-d' in args or  '-n' in args:
+        # decimal / numerical
+        char_set = string.digits
+    elif '-h' in args:
+        # hexadecimal character set
+        char_set = string.digits + 'ABCDEF'
+
+    # group separator
+    if '-c' in args:
+        sep = ' '
+
+# create strings
+Ngroups = width // (groupsize + 1)
+for nline in range(Nlines):
+    line = ''
+    for ngroup in range(Ngroups):
+        chars = [secrets.choice(char_set) for i in range(groupsize)]
+        group = ''.join(chars) + sep
+        line = line + group
+    print(str(nline).rjust(2) + ': ' + line)
+
+setsize = len(char_set)
+print('Alphabet of %i characters' % setsize)
+
+bitlengths = (16, 32, 64, 128, 256, 512, 1024)
+for bitlength in bitlengths:
+    wordlength = 0
+    strength = 2**bitlength
+    while True:
+        wordlength += 1
+        if setsize**wordlength < strength:
+            continue
+
+        
+        bit_str = ('%i' % bitlength).rjust(4)
+        char_str = ('%i' % wordlength).rjust(3)
+        print('%s bit: %s characters' % (bit_str, char_str))
+        break

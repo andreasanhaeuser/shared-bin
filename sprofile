@@ -1,0 +1,2 @@
+#!/bin/sh
+python -m cProfile $@ | sort -u -k4

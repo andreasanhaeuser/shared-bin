@@ -1,0 +1,10 @@
+#!/bin/bash
+
+loc_account='andreas'
+rem_account=$1
+rem_server=$2
+
+loc_path=$PWD
+rem_path="${loc_path/$loc_account/$rem_account}"
+
+ssh -tX $rem_account@$rem_server "cd $rem_path ; bash" ;
