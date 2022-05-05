@@ -36,12 +36,12 @@ sudo apt update
 sudo apt install $apt_packages
 
 # install via pip
-echo $hline
-echo "INSTALL MISSING PYTHON PACKAGES VIA PIP..."
-pip_packages='
-    elevation
-    missingno
-    planar
-    pyreadr
-'
-sudo -H pip3 install -U $pip_packages
+#echo $hline
+#echo "INSTALL MISSING PYTHON PACKAGES VIA PIP..."
+#pip_packages='
+#    elevation
+#    missingno
+#    planar
+#    pyreadr
+#'
+#sudo -H pip3 install -U $pip_packages
